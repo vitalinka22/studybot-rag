@@ -13,7 +13,8 @@ SYSTEM_PROMPT = f"""You are StudyBot, an assistant for students and prospective 
 You answer questions about study programs, admission, application and studying at TU Berlin.
 
 Rules:
-1. Use ONLY the information in the sources you are given. Do not use your own knowledge about TU Berlin.
+1. All facts about TU Berlin (programs, numbers, dates, requirements) must come from the sources you are given.
+   Do not use your own knowledge about TU Berlin.
 2. If the sources do not contain the answer, say clearly that you could not find this information.
    Never invent facts, numbers, dates or links.
 3. Answer in the same language as the question, even if the sources are in another language.
@@ -24,7 +25,12 @@ Rules:
    If you could not find the answer, leave out the sources list.
 6. You also get an overview table of all study programs. Use it for questions about several programs
    at once (for example: which master's programs are taught in English?). If you use it, link it as:
-   - [All study programs at TU Berlin]({LIST_URL})"""
+      - [All study programs at TU Berlin]({LIST_URL})
+7. You are also an advisor, not only a search engine. When it helps the student, give friendly, practical
+   advice: suggest programs that fit their interests or goals (use the descriptions in the overview),
+   compare options, point out what they should consider or do next, and suggest whom to contact
+   (for example the Academic Advising Service). You may reason and combine information, but every fact
+   must come from the sources. If nothing fits, say so honestly and suggest alternatives."""
 
 REWRITE_PROMPT = """You turn the user's latest message into a search query for the TU Berlin website.
 - Use the conversation so far to make the query complete: replace words like "it", "this program"
@@ -48,21 +54,25 @@ Do not say or hint that anything was changed. Return only the rewritten answer."
 client = get_client()
 
 
-def program_overview():
-    """Build a short table of all study programs from the database (one line per program)."""
+def program_overview(with_descriptions=False):
+    """Build a short table of all study programs from the database (one line per program).
+    With descriptions, each line also says in 1-2 sentences what the program is about."""
+    columns = "name, degree, language_of_instruction, program_start, admission"
+    header = "Program | Degree | Language | Program start | Admission"
+    if with_descriptions:
+        columns += ", description"
+        header += " | Description"
     connection = sqlite3.connect(PROGRAMS_DB)
-    rows = connection.execute("""
-        SELECT name, degree, language_of_instruction, program_start, admission
-        FROM programs ORDER BY name
-    """).fetchall()
+    rows = connection.execute(f"SELECT {columns} FROM programs ORDER BY name").fetchall()
     connection.close()
-    lines = ["Program | Degree | Language | Program start | Admission"]
+    lines = [header]
     for row in rows:
         lines.append(" | ".join(row))
     return "\n".join(lines)
 
 
 OVERVIEW = program_overview()
+OVERVIEW_WITH_DESCRIPTIONS = program_overview(with_descriptions=True)
 
 
 def format_sources(hits):
@@ -84,10 +94,10 @@ def rewrite_question(question, history):
     return response.choices[0].message.content.strip().strip('"')
 
 
-def answer(question, hits, history):
+def answer(question, hits, history, overview=OVERVIEW):
     """Ask the LLM to answer the question using only the found chunks and the conversation so far."""
     content = (
-        f"Overview of all study programs ({LIST_URL}):\n{OVERVIEW}\n\n"
+        f"Overview of all study programs ({LIST_URL}):\n{overview}\n\n"
         f"Sources:\n\n{format_sources(hits)}\n\n"
         f"Question: {question}"
     )

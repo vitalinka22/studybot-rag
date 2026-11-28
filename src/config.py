@@ -8,7 +8,7 @@ load_dotenv()
 
 BASE_URL = "https://saia.gwdg.de/v1"
 CHAT_MODEL = "gemma-4-31b-it"
-EMBEDDING_MODEL = "multilingual-e5-large-instruct"
+EMBEDDING_MODEL = "qwen3-embedding-4b"
 USER_MODEL = "qwen3-30b-a3b-instruct-2507"   # plays the simulated students
 JUDGE_MODEL = "mistral-large-4-1t-a52b"      # judges whether the goals were achieved
 
